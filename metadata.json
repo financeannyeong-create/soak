@@ -1,0 +1,6 @@
+{
+  "name": "Cafe & Warehouse Multi-Outlet Ops",
+  "description": "Sistem operasional multi-outlet cafe dan warehouse dengan sinkronisasi PIN online Google Sheets, opname closing, store order H+1, purchasing, surat jalan, dan rekap omset.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

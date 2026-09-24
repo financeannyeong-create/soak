@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Cafe & Warehouse Ops - Multi-Outlet System</title>
+  <meta name="description" content="Operasional Cafe & Warehouse: Login PIN Rahasia, Manajemen PIN, Stock Opname, Store Order, Purchasing, Pengiriman, Omset & Sinkronisasi Google Sheets." />
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/index.css">
+  
+  <style>
+    /* Styling Navigasi Kotak-Kotak (Grid Layout UI) */
+    .nav-grid-container {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    @media (min-width: 640px) {
+      .nav-grid-container {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    @media (min-width: 1024px) {
+      .nav-grid-container {
+        grid-template-columns: repeat(6, 1fr);
+      }
+    }
+    .nav-card-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 8px;
+      background: #111a2e;
+      border: 1px solid var(--border-color, #1e293b);
+      border-radius: 10px;
+      color: #94a3b8;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+      min-height: 72px;
+    }
+    .nav-card-btn:hover {
+      background: #1e293b;
+      color: #f8fafc;
+      transform: translateY(-2px);
+    }
+    .nav-card-btn.active {
+      background: rgba(245, 158, 11, 0.15);
+      border-color: #f59e0b;
+      color: #fbbf24;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+    }
+    .nav-card-btn .nav-icon {
+      font-size: 18px;
+      margin-bottom: 3px;
+    }
+    .nav-card-btn .nav-title {
+      font-size: 11.5px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .nav-card-btn .nav-desc {
+      font-size: 9.5px;
+      opacity: 0.75;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================================= -->
+  <!-- 1. FULLSCREEN OVERLAY LOGIN PIN (PRIVASI & AMAN)          -->
+  <!-- ========================================================= -->
+  <div id="pinOverlay" style="position:fixed;inset:0;background:#060911;display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;">
+    <div style="max-width: 330px; width: 100%; display: flex; flex-direction: column; align-items: center;">
+      
+      <div style="width: 54px; height: 54px; border-radius: 14px; background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); display: flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
+          <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
+          <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+        </svg>
+      </div>
+
+      <h1 style="font-size: 18px; font-weight: 800; color: #f8fafc; margin-bottom: 2px;">CAFE & WAREHOUSE OPS</h1>
+      <p style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 10px;">Masukkan 4-Digit PIN Outlet / Gudang</p>
+
+      <!-- Cloud PIN Sync Status Badge -->
+      <div id="pinSyncIndicator" style="display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; background: #0f172a; border: 1px solid var(--border-color); font-size: 11px; margin-bottom: 12px;">
+        <span id="pinSyncDot" style="width: 7px; height: 7px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+        <span id="pinSyncText" style="color: #94a3b8;">Sinkronisasi PIN Online</span>
+        <button type="button" onclick="fetchLatestPinsFromSheet(true)" title="Muat ulang PIN dari Google Sheets" style="background:none; border:none; color:#38bdf8; font-size:12px; padding:0; cursor:pointer;">🔄</button>
+      </div>
+
+      <!-- 4 PIN Dots -->
+      <div id="pinDotsContainer" style="display: flex; gap: 14px; margin-bottom: 10px; padding: 10px 24px; background: #0f172a; border-radius: 9999px; border: 1px solid var(--border-color);">
+        <div class="pin-dot" id="dot0"></div>
+        <div class="pin-dot" id="dot1"></div>
+        <div class="pin-dot" id="dot2"></div>
+        <div class="pin-dot" id="dot3"></div>
+      </div>
+
+      <div id="pinMsg" style="min-height: 20px; font-size: 12px; font-weight: 600; text-align: center; margin-bottom: 14px; color: #f87171;"></div>
+
+      <!-- Keypad (0-9, C, OK) -->
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%;">
+        <button class="num-key" onclick="handlePinInput('1')">1</button>
+        <button class="num-key" onclick="handlePinInput('2')">2</button>
+        <button class="num-key" onclick="handlePinInput('3')">3</button>
+        <button class="num-key" onclick="handlePinInput('4')">4</button>
+        <button class="num-key" onclick="handlePinInput('5')">5</button>
+        <button class="num-key" onclick="handlePinInput('6')">6</button>
+        <button class="num-key" onclick="handlePinInput('7')">7</button>
+        <button class="num-key" onclick="handlePinInput('8')">8</button>
+        <button class="num-key" onclick="handlePinInput('9')">9</button>
+        <button class="num-key func-c" onclick="handlePinClear()" title="Clear">C</button>
+        <button class="num-key" onclick="handlePinInput('0')">0</button>
+        <button class="num-key func-ok" onclick="handlePinSubmit()" title="OK">OK</button>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ========================================================= -->
+  <!-- 2. MAIN APP CONTAINER                                     -->
+  <!-- ========================================================= -->
+  <div id="mainApp" style="display: none; flex-direction: column; min-height: 100vh;">
+    
+    <!-- Header -->
+    <header class="glass-header" style="position: sticky; top: 0; z-index: 40; padding: 10px 16px;">
+      <div style="max-width: 1020px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="background: #1e293b; border: 1px solid var(--border-color); border-radius: 8px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; color: #f59e0b;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
+            </svg>
+          </div>
+          <div>
+            <div style="font-size: 10px; color: var(--text-dim); font-weight: 700; text-transform: uppercase;">Outlet Aktif</div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span id="headerOutletName" style="font-weight: 800; font-size: 14.5px; color: #f8fafc;">-</span>
+              <span id="headerRoleBadge" class="badge badge-amber">Cabang</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tombol Aksi Header -->
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <!-- Tombol Sheets Sync: HANYA untuk role 'admin' (PIN 1409) -->
+          <button id="btnSheetsSync" onclick="openSettingsModal()" style="display: none; background: #1e293b; border: 1px solid var(--border-color); color: #38bdf8; font-size: 11.5px; font-weight: 600; padding: 7px 10px; border-radius: 8px; align-items: center; gap: 4px; cursor: pointer;" title="Konfigurasi Google Sheets">
+            <span>⚙️ Sheets Sync</span>
+          </button>
+
+          <!-- Tombol Lock / Exit -->
+          <button onclick="handleLogout()" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); color: #fca5a5; font-size: 11.5px; font-weight: 700; padding: 7px 11px; border-radius: 8px; display: flex; align-items: center; gap: 4px;" title="Kunci dan Keluar">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            <span>Lock / Exit</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Navigation Tabs (Modern Grid Card UI) -->
+      <nav id="navTabsContainer" class="nav-grid-container" aria-label="Menu Navigasi Utama" style="max-width: 1020px; margin: 10px auto 4px auto;">
+        <!-- TAB CABANG -->
+        <button id="tabBtnOpname" class="tab-btn nav-card-btn active" onclick="switchTab('opname')" title="Stock Opname Closing Shift">
+          <span class="nav-icon">📋</span>
+          <span class="nav-title">Stock Opname</span>
+          <span class="nav-desc">Closing Shift</span>
+        </button>
+
+        <button id="tabBtnOrder" class="tab-btn nav-card-btn" onclick="switchTab('order')" title="Store Order Permintaan Barang">
+          <div style="position: relative; display: flex; align-items: center; justify-content: center;">
+            <span class="nav-icon">🚚</span>
+            <span id="orderCartBadge" style="display:none; position: absolute; top: -6px; right: -12px; background:#f59e0b; color:#090d16; font-size:9.5px; font-weight:800; border-radius:10px; padding:1px 5px; box-shadow: 0 0 6px rgba(245, 158, 11, 0.7);">0</span>
+          </div>
+          <span class="nav-title">Store Order</span>
+          <span class="nav-desc">Permintaan H+1</span>
+        </button>
+
+        <!-- TAB WAREHOUSE & OWNER CENTRAL -->
+        <button id="tabBtnMasterBarang" class="tab-btn nav-card-btn" onclick="switchTab('master_barang')" style="display: none;" title="Katalog Master Barang & Stok">
+          <span class="nav-icon">📦</span>
+          <span class="nav-title">Master Barang</span>
+          <span class="nav-desc">Katalog & Stok</span>
+        </button>
+
+        <button id="tabBtnPurchasing" class="tab-btn nav-card-btn" onclick="switchTab('purchasing')" style="display: none;" title="Penerimaan Barang Masuk / Purchasing">
+          <span class="nav-icon">📥</span>
+          <span class="nav-title">Barang Datang</span>
+          <span class="nav-desc">Purchasing Masuk</span>
+        </button>
+
+        <button id="tabBtnBarangKeluar" class="tab-btn nav-card-btn" onclick="switchTab('barang_keluar')" style="display: none;" title="Pengiriman Barang Keluar & Surat Jalan">
+          <span class="nav-icon">📤</span>
+          <span class="nav-title">Barang Keluar</span>
+          <span class="nav-desc">Surat Jalan Cabang</span>
+        </button>
+
+        <button id="tabBtnListPermintaan" class="tab-btn nav-card-btn" onclick="switchTab('list_permintaan')" style="display: none;" title="Daftar Permintaan Masuk dari Cabang">
+          <span class="nav-icon">📑</span>
+          <span class="nav-title">List Permintaan</span>
+          <span class="nav-desc">Rekap Order Toko</span>
+        </button>
+
+        <button id="tabBtnOmset" class="tab-btn nav-card-btn" onclick="switchTab('omset')" style="display: none;" title="Laporan & Rekapitulasi Omset Harian">
+          <span class="nav-icon">💰</span>
+          <span class="nav-title">Omset Harian</span>
+          <span class="nav-desc">Laporan Penjualan</span>
+        </button>
+
+        <button id="tabBtnPinSettings" class="tab-btn nav-card-btn" onclick="switchTab('pin_settings')" style="display: none;" title="Kelola PIN & Hak Akses Outlet">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-title">Pengaturan PIN</span>
+          <span class="nav-desc">Keamanan & Akses</span>
+        </button>
+      </nav>
+    </header>
+
+
+    <!-- Content Area -->
+    <main style="max-width: 1020px; width: 100%; margin: 0 auto; padding: 14px; flex: 1;">
+
+      <!-- SEKSI OPNAME -->
+      <section id="sectionOpname" style="display: block;">
+        <div class="card" style="margin-bottom: 12px; background: linear-gradient(180deg, #111a2e, #0f172a);">
+          <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;">
+            <div>
+              <h2 style="font-size: 15px; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 6px;">
+                <span>📋 Form Stock Opname Closing</span>
+                <span class="badge badge-amber" id="opnameDateBadge">Hari Ini</span>
+              </h2>
+              <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+                Input fisik akhir real closing. Selisih: <code style="color:#f59e0b;">Akhir - (Awal + Masuk)</code>.
+              </p>
+            </div>
+            <button onclick="openAddItemModal()" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8; font-size: 11.5px; font-weight: 600; padding: 6px 11px; border-radius: 7px;">
+              + Tambah Item
+            </button>
+          </div>
+
+          <div style="margin-top: 10px; display: flex; gap: 6px; overflow-x: auto;">
+            <button class="cat-pill" onclick="filterOpnameCat('All')" id="cat_All" style="padding: 4px 10px; font-size: 11px; font-weight: 600; border-radius: 14px; border: 1px solid var(--border-color); background: #1e293b; color: #fff;">Semua (<span id="countAll">0</span>)</button>
+            <button class="cat-pill" onclick="filterOpnameCat('Bahan Baku')" id="cat_Bahan" style="padding: 4px 10px; font-size: 11px; font-weight: 600; border-radius: 14px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted);">Bahan Baku</button>
+            <button class="cat-pill" onclick="filterOpnameCat('Syrup & Powder')" id="cat_Syrup" style="padding: 4px 10px; font-size: 11px; font-weight: 600; border-radius: 14px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted);">Syrup & Powder</button>
+            <button class="cat-pill" onclick="filterOpnameCat('Packaging')" id="cat_Pack" style="padding: 4px 10px; font-size: 11px; font-weight: 600; border-radius: 14px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted);">Packaging</button>
+            <button class="cat-pill" onclick="filterOpnameCat('Lain-lain')" id="cat_Lain" style="padding: 4px 10px; font-size: 11px; font-weight: 600; border-radius: 14px; border: 1px solid var(--border-color); background: transparent; color: var(--text-muted);">Lain-lain</button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 28%;">Nama Barang</th>
+                <th style="text-align: center; width: 10%;">Awal</th>
+                <th style="text-align: center; width: 10%;">Masuk</th>
+                <th style="text-align: center; width: 24%; min-width: 130px;">Fisik Akhir</th>
+                <th style="text-align: center; width: 10%;">Satuan</th>
+                <th style="text-align: right; width: 18%;">Selisih</th>
+              </tr>
+            </thead>
+            <tbody id="opnameTableBody"></tbody>
+          </table>
+        </div>
+
+        <div style="margin-top: 14px;">
+          <button onclick="handleSubmitOpnameAndSync()" style="width: 100%; background: linear-gradient(135deg, #10b981, #059669); border: none; color: #fff; padding: 12px; border-radius: 10px; font-weight: 700; font-size: 13.5px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>SUBMIT OPNAME & SYNC GOOGLE SHEETS</span>
+          </button>
+        </div>
+      </section>
+
+
+      <!-- SEKSI STORE ORDER -->
+      <section id="sectionOrder" style="display: none;">
+        <div class="card" style="margin-bottom: 12px; background: linear-gradient(180deg, #182236, #0f172a);">
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+            <div>
+              <h2 style="font-size: 15px; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 6px;">
+                <span>🚚 Permintaan Barang ke Warehouse (Store Order)</span>
+                <span class="badge badge-cyan">Kirim H+1</span>
+              </h2>
+              <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+                Outlet Asal otomatis terpilih & terkunci (Read-Only).
+              </p>
+            </div>
+            <div id="opnameSuggestionBox" style="display: none; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; padding: 4px 8px; font-size: 11px; color: #fbbf24;">
+              <span>💡 Ada barang minus: </span>
+              <button onclick="autoAddMinusItemsToCart()" style="font-weight: 700; text-decoration: underline; background: none; border: none; color: #f59e0b;">+ Tambah ke Order</button>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color);">
+            <div>
+              <label style="display: block; font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 3px;">Outlet Asal (Read-Only 🔒)</label>
+              <input type="text" id="orderOutletInput" class="touch-input" readonly disabled style="font-weight: 700; color: #f59e0b;">
+            </div>
+            <div>
+              <label style="display: block; font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 3px;">Tanggal Pengiriman (Default H+1)</label>
+              <input type="date" id="orderDeliveryDate" class="touch-input" style="font-family:'JetBrains Mono', monospace;">
+            </div>
+            <div>
+              <label style="display: block; font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 3px;">No. WA Admin Warehouse</label>
+              <input type="text" id="orderWaAdmin" class="touch-input" value="6281234567890" style="font-family:'JetBrains Mono', monospace;">
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom: 12px;">
+          <h3 style="font-size: 12.5px; font-weight: 700; color: #f8fafc; margin-bottom: 8px;">+ Tambah Barang ke Permintaan</h3>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; align-items: end;">
+            <div style="grid-column: span 1 / -1;">
+              <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Pilih Barang</label>
+              <div style="display: flex; gap: 6px;">
+                <select id="orderSelectCatalog" class="touch-input" onchange="handleCatalogSelectChange()" style="flex: 2;"></select>
+                <input type="text" id="orderCustomItemName" placeholder="Nama barang baru..." class="touch-input" style="flex: 2; display: none;">
+                <button type="button" id="btnToggleCustom" onclick="toggleCustomItemInput()" style="background: #1a2742; border: 1px solid var(--border-color); color: var(--text-muted); font-size: 11px; padding: 0 10px; border-radius: 7px; white-space: nowrap;">Item Baru?</button>
+              </div>
+            </div>
+            <div>
+              <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Jumlah (Qty)</label>
+              <input type="number" id="orderQtyInput" min="1" step="any" placeholder="0" class="touch-input" style="font-family:'JetBrains Mono'; font-weight: bold;">
+            </div>
+            <div>
+              <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Satuan</label>
+              <select id="orderUnitInput" class="touch-input">
+                <option value="Kg">Kg</option>
+                <option value="Liter">Liter</option>
+                <option value="Botol">Botol</option>
+                <option value="Pcs">Pcs</option>
+                <option value="Box">Box</option>
+                <option value="Pack">Pack</option>
+                <option value="Dus">Dus</option>
+              </select>
+            </div>
+            <div>
+              <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Prioritas</label>
+              <select id="orderPriorityInput" class="touch-input">
+                <option value="Normal">🟢 Normal (H+1)</option>
+                <option value="Urgen">🔴 URGEN (Habis)</option>
+              </select>
+            </div>
+            <div>
+              <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Catatan (Opsional)</label>
+              <input type="text" id="orderNotesInput" placeholder="Contoh: Fresh roast..." class="touch-input">
+            </div>
+            <div>
+              <button onclick="handleAddItemToCart()" style="width: 100%; height: 36px; background: #f59e0b; color: #090d16; font-weight: 700; border: none; border-radius: 8px; font-size: 12px;">+ Masukkan Daftar</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="padding: 0; overflow: hidden; margin-bottom: 12px;">
+          <div style="padding: 9px 14px; background: #111a2e; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-size: 12px; font-weight: 700;">Daftar Permintaan (<span id="orderCartCount">0</span> Item)</div>
+            <button onclick="clearOrderCart()" style="background: none; border: none; color: #f87171; font-size: 11px; cursor: pointer;">Hapus Semua</button>
+          </div>
+          <div class="table-container" style="border: none; border-radius: 0;">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 5%;">No</th>
+                  <th style="width: 40%;">Barang</th>
+                  <th style="text-align: center; width: 18%;">Jumlah</th>
+                  <th style="text-align: center; width: 15%;">Prioritas</th>
+                  <th style="width: 15%;">Catatan</th>
+                  <th style="text-align: center; width: 7%;">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="orderCartTableBody"></tbody>
+            </table>
+          </div>
+          <div id="orderEmptyState" style="padding: 20px; text-align: center; color: var(--text-dim); font-size: 12px;">
+            Belum ada barang di daftar order. Silakan pilih barang lalu klik "+ Masukkan Daftar".
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px;">
+          <button onclick="openOrderSummaryModal()" style="background: #1e293b; border: 1px solid var(--border-color); color: #fff; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 600;">📝 Lihat Format Pesan</button>
+          <button onclick="exportOrderToCSV()" style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 600;">📊 Export CSV</button>
+          <button onclick="handleSendOrderAndSync()" style="background: linear-gradient(135deg, #25d366, #128c7e); border: none; color: #fff; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 700;">🚀 Kirim WA & Sync Sheets</button>
+        </div>
+      </section>
+
+
+      <!-- SEKSI MASTER BARANG (KATALOG ITEM) -->
+      <section id="sectionMasterBarang" style="display: none;">
+        <div class="card" style="margin-bottom: 12px; background: linear-gradient(180deg, #132238, #0f172a); border-color: #1e3a5f;">
+          <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;">
+            <div>
+              <h2 style="font-size: 15px; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 6px;">
+                <span>🏷️ 1. Master Barang (Katalog Item Multi-Outlet)</span>
+                <span class="badge badge-cyan">Admin Warehouse</span>
+              </h2>
+              <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+                Database master seluruh item cabang & gudang. Otomatis menjadi sumber data form Opname & Store Order seluruh cabang.
+              </p>
+            </div>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+              <button onclick="fetchMasterBarangFromSheet(true)" style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8; font-size: 11px; font-weight: 600; padding: 6px 10px; border-radius: 7px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                <span>🔄 Tarik dari Sheets</span>
+              </button>
+              <button onclick="syncMasterBarangToSheet()" style="background: #10b981; color: #fff; font-size: 11px; font-weight: 700; border: none; padding: 6px 12px; border-radius: 7px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                <span>💾 Simpan & Sync Master Barang</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Form Tambah Barang Baru -->
+        <div class="card" style="margin-bottom: 12px;">
+          <div style="font-size: 12px; font-weight: 700; color: #38bdf8; margin-bottom: 8px; display: flex; align-items: center; gap: 5px;">
+            <span>+ Input Barang Baru ke Master</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; align-items: end;">
+            <div>
+              <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Kode / SKU Barang</label>
+              <input type="text" id="newMasterSku" placeholder="Contoh: BB-016" class="touch-input" style="font-family:'JetBrains Mono';">
+            </div>
+            <div style="grid-column: span 1 / -1;">
+              <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Nama Barang</label>
+              <input type="text" id="newMasterName" placeholder="Contoh: Biji Kopi House Blend, Susu UHT..." class="touch-input">
+            </div>
+            <div>
+              <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Kategori</label>
+              <select id="newMasterCategory" class="touch-input">
+                <option value="Bahan Baku">Bahan Baku</option>
+                <option value="Packaging">Packaging</option>
+                <option value="Syrup & Powder">Syrup & Powder</option>
+                <option value="Kebersihan/Lain-lain">Kebersihan/Lain-lain</option>
+              </select>
+            </div>
+            <div>
+              <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Satuan Utama</label>
+              <select id="newMasterUnit" class="touch-input">
+                <option value="Kg">Kg</option>
+                <option value="Liter">Liter</option>
+                <option value="Box">Box</option>
+                <option value="Pcs">Pcs</option>
+                <option value="Pack">Pack</option>
+                <option value="Roll">Roll</option>
+                <option value="Botol">Botol</option>
+              </select>
+            </div>
+            <div>
+              <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Buffer Stock (Min. Stok)</label>
+              <input type="number" id="newMasterBuffer" placeholder="5" min="0" step="any" class="touch-input" style="font-family:'JetBrains Mono';">
+            </div>
+            <div>
+              <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Stok Awal Gudang</label>
+              <input type="number" id="newMasterWhStock" placeholder="0" min="0" step="any" class="touch-input" style="font-family:'JetBrains Mono';">
+            </div>
+            <div>
+              <button onclick="handleAddNewMasterBarang()" style="width: 100%; height: 36px; background: #f59e0b; color: #090d16; font-weight: 700; border: none; border-radius: 8px; font-size: 12px; cursor: pointer;">
+                + Tambah Item
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabel Daftar Master Barang -->
+        <div class="card" style="padding: 0; overflow: hidden;">
+          <div style="padding: 10px 14px; background: #111a2e; border-bottom: 1px solid var(--border-color); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 12.5px; font-weight: 700;">Katalog Master Barang</span>
+              <span id="masterTotalBadge" class="badge badge-cyan">0 Item</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <input type="text" id="searchMasterInput" oninput="renderMasterBarangTable()" placeholder="Cari nama / SKU..." class="touch-input" style="width: 150px; padding: 4px 8px; font-size: 11px;">
+              <select id="filterMasterCat" onchange="renderMasterBarangTable()" class="touch-input" style="width: 130px; padding: 4px 6px; font-size: 11px;">
+                <option value="All">Semua Kategori</option>
+                <option value="Bahan Baku">Bahan Baku</option>
+                <option value="Packaging">Packaging</option>
+                <option value="Syrup & Powder">Syrup & Powder</option>
+                <option value="Kebersihan/Lain-lain">Kebersihan/Lain-lain</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-container" style="border: none; border-radius: 0;">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 11%;">SKU</th>
+                  <th style="width: 25%;">Nama Barang</th>
+                  <th style="width: 16%;">Kategori</th>
+                  <th style="width: 10%; text-align: center;">Satuan</th>
+                  <th style="width: 13%; text-align: center; color: #38bdf8;">Stok Gudang</th>
+                  <th style="width: 11%; text-align: center;">Buffer Min</th>
+                  <th style="width: 14%; text-align: center;">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="masterBarangTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- SEKSI PURCHASING -->
+      <section id="sectionPurchasing" style="display: none;">
+        <div class="card" style="margin-bottom: 12px; background: linear-gradient(180deg, #111e38, #0f172a); border-color: #234073;">
+          <h2 style="font-size: 15px; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 6px;">
+            <span>📦 2. Input Barang Datang (Purchasing)</span>
+            <span class="badge badge-cyan">Admin Warehouse</span>
+          </h2>
+          <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+            Penerimaan pasokan barang supplier/vendor. Stok gudang otomatis bertambah & tersinkron ke Google Sheets.
+          </p>
+        </div>
+
+        <div class="card" style="margin-bottom: 12px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 10px;">
+            <div>
+              <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Tanggal Terima (Default Hari Ini)</label>
+              <input type="date" id="purchasingDate" class="touch-input" style="font-family:'JetBrains Mono';">
+            </div>
+            <div>
+              <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Supplier / Vendor</label>
+              <input type="text" id="purchasingVendor" placeholder="Supplier Roastery, Pabrik Cup..." class="touch-input">
+            </div>
+            <div>
+              <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">No. Surat Jalan / Invoice (Opsional)</label>
+              <input type="text" id="purchasingInvoice" placeholder="INV-2026/09/101" class="touch-input">
+            </div>
+          </div>
+
+          <div style="border-top: 1px solid var(--border-color); padding-top: 10px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; align-items: end;">
+              <div style="grid-column: span 1 / -1;">
+                <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Pilih Barang Masuk</label>
+                <select id="purchasingSelectCatalog" class="touch-input" onchange="handlePurchasingSelectChange()"></select>
+              </div>
+              <div>
+                <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Jumlah Masuk (Qty)</label>
+                <input type="number" id="purchasingQty" min="1" step="any" placeholder="0" class="touch-input" style="font-family:'JetBrains Mono'; font-weight:bold;">
+              </div>
+              <div>
+                <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Satuan</label>
+                <input type="text" id="purchasingUnit" class="touch-input" readonly>
+              </div>
+              <div>
+                <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Harga Beli / Satuan (Rp)</label>
+                <input type="number" id="purchasingPrice" placeholder="Rp 0" class="touch-input" style="font-family:'JetBrains Mono';">
+              </div>
+              <div>
+                <button onclick="handleSavePurchasingEntryAndSync()" style="width: 100%; height: 36px; background: #38bdf8; color: #090d16; font-weight: 700; border: none; border-radius: 8px; font-size: 12px;">+ Simpan & Sync Sheets</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="padding: 0; overflow: hidden;">
+          <div style="padding: 9px 14px; background: #111a2e; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 12px; font-weight: 700;">Riwayat Penerimaan Pasokan Supplier</span>
+            <span id="purchasingCountBadge" class="badge badge-cyan">0 Transaksi</span>
+          </div>
+          <div class="table-container" style="border: none; border-radius: 0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tanggal</th>
+                  <th>Supplier</th>
+                  <th>No. Invoice</th>
+                  <th>Barang & Qty</th>
+                  <th>Harga Satuan</th>
+                  <th>Total Beli</th>
+                </tr>
+              </thead>
+              <tbody id="purchasingTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- SEKSI BARANG KELUAR -->
+      <section id="sectionBarangKeluar" style="display: none;">
+        <div class="card" style="margin-bottom: 12px; background: linear-gradient(180deg, #111e38, #0f172a); border-color: #234073;">
+          <h2 style="font-size: 15px; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 6px;">
+            <span>🚚 3. Input Barang Keluar (Pengiriman ke Cabang)</span>
+            <span class="badge badge-cyan">Admin Warehouse</span>
+          </h2>
+          <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+            Pilih cabang tujuan, cek daftar barang yang diminta, <b>ubah kuantitas kirim yang di-acc</b> bila stok terbatas, lalu proses kirim.
+          </p>
+        </div>
+
+        <div class="card" style="margin-bottom: 12px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; align-items: end;">
+            <div>
+              <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Pilih Cabang Tujuan</label>
+              <select id="selectBranchToShip" class="touch-input" onchange="loadBranchShipmentItems()">
+                <option value="Annyeong TA">Annyeong TA</option>
+                <option value="Annyeong KDR">Annyeong KDR</option>
+                <option value="Kono 1">Kono 1</option>
+                <option value="Kono 2.0">Kono 2.0</option>
+              </select>
+            </div>
+            <div>
+              <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Tanggal Pengiriman</label>
+              <input type="date" id="shipmentDeliveryDate" class="touch-input" style="font-family:'JetBrains Mono';">
+            </div>
+            <div>
+              <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Nama Driver / Ekspedisi</label>
+              <input type="text" id="shipmentDriverName" value="Driver Warehouse" class="touch-input">
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="padding: 0; overflow: hidden; margin-bottom: 12px;">
+          <div style="padding: 9px 14px; background: #111a2e; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 12px; font-weight: 700;">Barang Diminta & Penyesuaian Kuantitas Kirim (Acc)</span>
+            <span class="badge badge-amber">Editable Qty Kirim</span>
+          </div>
+          <div class="table-container" style="border: none; border-radius: 0;">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 35%;">Nama Barang</th>
+                  <th style="text-align: center; width: 15%;">Diminta</th>
+                  <th style="text-align: center; width: 25%; color: #38bdf8;">Jumlah Kirim (Acc)</th>
+                  <th style="text-align: center; width: 10%;">Satuan</th>
+                  <th style="width: 15%;">Catatan Kirim</th>
+                </tr>
+              </thead>
+              <tbody id="shipmentItemsTableBody"></tbody>
+            </table>
+          </div>
+          <div id="shipmentEmptyState" style="padding: 20px; text-align: center; color: var(--text-dim); font-size: 12px;">
+            Tidak ada pesanan pending untuk cabang ini. Anda dapat menambahkan item manual di bawah.
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 8px; justify-content: flex-end;">
+          <button type="button" id="btnOpenManualShipment" onclick="openManualShipmentModal()" style="background: #1e293b; border: 1px solid var(--border-color); color: #38bdf8; padding: 10px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+            <span>+ Tambah Item Kirim Manual</span>
+          </button>
+          <button onclick="handleProcessShipmentAndSync()" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-weight: 700; border: none; padding: 10px 18px; border-radius: 8px; font-size: 12px; cursor: pointer;">
+            📦 Proses Kirim, Cetak Surat Jalan & Sync Sheets
+          </button>
+        </div>
+      </section>
+
+
+      <!-- SEKSI LIST PERMINTAAN BARANG CAFE -->
+      <section id="sectionListPermintaan" style="display: none;">
+        <div class="card" style="margin-bottom: 12px; background: linear-gradient(180deg, #111e38, #0f172a); border-color: #234073;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <h2 style="font-size: 15px; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 6px;">
+                <span>📋 4. Rekap Ringkasan Permintaan Barang Seluruh Cafe</span>
+                <span class="badge badge-cyan">Semua Cabang</span>
+              </h2>
+              <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+                Daftar lengkap permintaan masuk dari Annyeong TA, Annyeong KDR, Kono 1, dan Kono 2.0.
+              </p>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button onclick="seedSampleBranchOrders()" style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.35); color: #f59e0b; font-size: 11px; font-weight: 600; padding: 6px 10px; border-radius: 6px;">
+                + Muat Simulasi Order
+              </button>
+              <button onclick="exportAllOrdersToExcelCSV()" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-size: 11px; font-weight: 700; border: none; padding: 6px 12px; border-radius: 6px; display: flex; align-items: center; gap: 4px;">
+                <span>📊 Export ke Excel (.xlsx / .csv)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="padding: 0; overflow: hidden;">
+          <div class="table-container" style="border: none; border-radius: 0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tanggal Request</th>
+                  <th>Nama Cabang</th>
+                  <th>Daftar Item</th>
+                  <th style="text-align: center;">Jml Request</th>
+                  <th style="text-align: center;">Jml Di-acc</th>
+                  <th style="text-align: center;">Status</th>
+                  <th style="text-align: center;">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="allOrdersSummaryTableBody"></tbody>
+            </table>
+          </div>
+          <div id="allOrdersEmptyState" style="padding: 24px; text-align: center; color: var(--text-dim); font-size: 12px;">
+            Belum ada data permintaan dari cabang. Klik "+ Muat Simulasi Order" untuk mencoba data percontohan.
+          </div>
+        </div>
+      </section>
+
+
+      <!-- SEKSI OMSET HARIAN -->
+      <section id="sectionOmset" style="display: none;">
+        <div class="card" style="margin-bottom: 12px; background: linear-gradient(180deg, #10261e, #0f172a); border-color: #174d39;">
+          <h2 style="font-size: 15px; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 6px;">
+            <span>💰 5. Input Omset Harian 4 Outlet</span>
+            <span class="badge badge-emerald">Finance & Ops</span>
+          </h2>
+          <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+            Pencatatan penjualan/omset harian cabang. Total otomatis: <code style="color:#10b981;">Makanan + Minuman</code>.
+          </p>
+        </div>
+
+        <div class="card" style="margin-bottom: 12px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; align-items: end;">
+            <div>
+              <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Tanggal Omset (Default Hari Ini)</label>
+              <input type="date" id="omsetDateInput" class="touch-input" style="font-family:'JetBrains Mono';">
+            </div>
+            <div>
+              <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Pilih Cabang</label>
+              <select id="omsetBranchSelect" class="touch-input">
+                <option value="Annyeong TA">Annyeong TA</option>
+                <option value="Annyeong KDR">Annyeong KDR</option>
+                <option value="Kono 1">Kono 1</option>
+                <option value="Kono 2.0">Kono 2.0</option>
+              </select>
+            </div>
+            <div>
+              <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Omset Makanan (Rp)</label>
+              <input type="number" id="omsetFoodInput" placeholder="0" min="0" class="touch-input" style="font-family:'JetBrains Mono';" oninput="calcTotalOmset()">
+            </div>
+            <div>
+              <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Omset Minuman (Rp)</label>
+              <input type="number" id="omsetDrinkInput" placeholder="0" min="0" class="touch-input" style="font-family:'JetBrains Mono';" oninput="calcTotalOmset()">
+            </div>
+            <div>
+              <label style="display: block; font-size: 10.5px; color: #10b981; font-weight: 700; margin-bottom: 3px;">Total Omset (Otomatis)</label>
+              <input type="text" id="omsetTotalDisplay" value="Rp 0" class="touch-input" readonly disabled style="font-family:'JetBrains Mono'; font-weight:800; color:#34d399; background:#06261c;">
+            </div>
+            <div>
+              <button onclick="handleSaveOmsetAndSync()" style="width: 100%; height: 36px; background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-weight: 700; border: none; border-radius: 8px; font-size: 12px; cursor: pointer;">
+                + Simpan & Sync Omset
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="padding: 0; overflow: hidden;">
+          <div style="padding: 9px 14px; background: #111a2e; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 12px; font-weight: 700;">Tabel Rincian Omset Harian Gabungan 4 Cabang</span>
+            <span id="omsetGrandTotalBadge" class="badge badge-emerald">Total: Rp 0</span>
+          </div>
+          <div class="table-container" style="border: none; border-radius: 0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tanggal</th>
+                  <th>Cabang</th>
+                  <th style="text-align: right;">Omset Makanan</th>
+                  <th style="text-align: right;">Omset Minuman</th>
+                  <th style="text-align: right; color: #34d399;">Total Omset</th>
+                  <th style="text-align: center;">Waktu Input</th>
+                </tr>
+              </thead>
+              <tbody id="omsetTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- SEKSI PENGATURAN PIN CABANG -->
+      <section id="sectionPinSettings" style="display: none;">
+        <div class="card" style="margin-bottom: 12px; background: linear-gradient(180deg, #182236, #0f172a);">
+          <h2 style="font-size: 15px; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 6px;">
+            <span>🔑 6. Pengaturan & Manajemen PIN Cabang</span>
+            <span class="badge badge-amber">Akses Khusus Warehouse / Owner</span>
+          </h2>
+          <p style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+            Atur dan ubah 4-digit PIN akses untuk Annyeong TA, Annyeong KDR, Kono 1, Kono 2.0, Warehouse, dan Owner Central.
+          </p>
+        </div>
+
+        <div class="card">
+          <div style="display: flex; flex-direction: column; gap: 10px;" id="pinManageContainer"></div>
+
+          <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; gap: 6px;">
+              <button onclick="resetDefaultPins()" style="background: none; border: 1px solid #334155; color: var(--text-muted); padding: 7px 11px; border-radius: 7px; font-size: 11.5px; cursor: pointer;">
+                Reset ke Default
+              </button>
+              <button onclick="fetchLatestPinsFromSheet(true)" style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8; padding: 7px 11px; border-radius: 7px; font-size: 11.5px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                <span>🔄 Tarik PIN dari Sheets</span>
+              </button>
+            </div>
+            <button onclick="saveUpdatedPins()" style="background: #f59e0b; color: #090d16; font-weight: 700; border: none; padding: 8px 16px; border-radius: 8px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+              <span>💾 Simpan Perubahan PIN & Sync Online</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+
+  <!-- MODAL: EDIT MASTER BARANG -->
+  <div id="editMasterModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 440px;">
+      <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: #111a2e;">
+        <h3 style="font-size: 13.5px; font-weight: 700; color: #38bdf8;">✏️ Edit Data Master Barang</h3>
+        <button onclick="closeEditMasterModal()" style="background:none; border:none; color:var(--text-muted); font-size:18px; cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+        <input type="hidden" id="editMasterId">
+        <div>
+          <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Kode / SKU</label>
+          <input type="text" id="editMasterSku" class="touch-input" style="font-family:'JetBrains Mono';">
+        </div>
+        <div>
+          <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Nama Barang</label>
+          <input type="text" id="editMasterName" class="touch-input">
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div>
+            <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Kategori</label>
+            <select id="editMasterCategory" class="touch-input">
+              <option value="Bahan Baku">Bahan Baku</option>
+              <option value="Packaging">Packaging</option>
+              <option value="Syrup & Powder">Syrup & Powder</option>
+              <option value="Kebersihan/Lain-lain">Kebersihan/Lain-lain</option>
+            </select>
+          </div>
+          <div>
+            <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Satuan</label>
+            <select id="editMasterUnit" class="touch-input">
+              <option value="Kg">Kg</option>
+              <option value="Liter">Liter</option>
+              <option value="Box">Box</option>
+              <option value="Pcs">Pcs</option>
+              <option value="Pack">Pack</option>
+              <option value="Roll">Roll</option>
+              <option value="Botol">Botol</option>
+            </select>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div>
+            <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Buffer Stock (Min)</label>
+            <input type="number" id="editMasterBuffer" step="any" min="0" class="touch-input" style="font-family:'JetBrains Mono';">
+          </div>
+          <div>
+            <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Stok Gudang (whStock)</label>
+            <input type="number" id="editMasterWhStock" step="any" min="0" class="touch-input" style="font-family:'JetBrains Mono';">
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 6px;">
+          <button onclick="closeEditMasterModal()" style="flex: 1; background: #1e293b; border: 1px solid var(--border-color); color: var(--text-muted); padding: 8px; border-radius: 7px; font-size: 11.5px; cursor: pointer;">Batal</button>
+          <button onclick="saveEditMasterBarang()" style="flex: 2; background: #38bdf8; color: #090d16; font-weight: 700; border: none; padding: 8px; border-radius: 7px; font-size: 11.5px; cursor: pointer;">Simpan Perubahan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- MODAL: TAMBAH ITEM KIRIM MANUAL -->
+  <div id="modalManualShipment" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 440px;">
+      <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: #111a2e;">
+        <h3 style="font-size: 13.5px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+          <span>📦 Tambah Item Kirim Manual</span>
+        </h3>
+        <button type="button" onclick="closeManualShipmentModal()" style="background:none; border:none; color:var(--text-muted); font-size:18px; cursor:pointer;">&times;</button>
+      </div>
+
+      <div style="padding: 14px; display: flex; flex-direction: column; gap: 11px;">
+        <p style="font-size: 11px; color: var(--text-muted); margin: 0;">
+          Pilih barang dari <b>Master Barang</b> untuk ditambahkan langsung ke pengiriman cabang tujuan.
+        </p>
+
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+            <label style="font-size: 10.5px; font-weight: 700; color: var(--text-muted);">Pilih Barang (Master Barang)</label>
+            <span id="manualShipmentStockBadge" class="badge badge-cyan" style="font-size: 10px;">Stok Gudang: -</span>
+          </div>
+          <select id="manualShipmentItemSelect" class="touch-input" onchange="handleManualShipmentSelectChange()"></select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px;">
+          <div>
+            <label style="display: block; font-size: 10.5px; font-weight: 700; color: #38bdf8; margin-bottom: 3px;">Jumlah Kirim (Acc) *</label>
+            <input type="number" id="manualShipmentQty" step="any" min="0.1" placeholder="Contoh: 5" class="touch-input" style="font-family:'JetBrains Mono'; font-weight:700; font-size:13px; color:#38bdf8;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 10.5px; font-weight: 700; color: var(--text-muted); margin-bottom: 3px;">Satuan</label>
+            <input type="text" id="manualShipmentUnitDisplay" readonly disabled class="touch-input" style="background:#0b1120; color:#94a3b8; font-weight:600; text-align:center;">
+          </div>
+        </div>
+
+        <div>
+          <label style="display: block; font-size: 10.5px; font-weight: 700; color: var(--text-muted); margin-bottom: 3px;">Catatan Pengiriman (Opsional)</label>
+          <input type="text" id="manualShipmentNotes" placeholder="Contoh: Tambahan darurat / Request WA" class="touch-input">
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-top: 4px;">
+          <button type="button" onclick="closeManualShipmentModal()" style="flex: 1; background: #1e293b; border: 1px solid var(--border-color); color: var(--text-muted); padding: 9px; border-radius: 7px; font-size: 11.5px; cursor: pointer;">
+            Batal
+          </button>
+          <button type="button" onclick="confirmAddManualShipmentItem()" style="flex: 2; background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; font-weight: 700; border: none; padding: 9px; border-radius: 7px; font-size: 11.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+            <span>+ Tambahkan ke Daftar Kirim</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- MODAL: GOOGLE SHEETS WEBHOOK SETTINGS -->
+  <div id="settingsModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="font-size: 13.5px; font-weight: 700; color: #38bdf8;">⚙️ Konfigurasi Google Sheets Webhook</h3>
+        <button onclick="closeSettingsModal()" style="background:none; border:none; color:var(--text-muted); font-size:18px; cursor:pointer;">&times;</button>
+      </div>
+      
+      <div style="padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+        <div>
+          <label style="display: block; font-size: 10.5px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Google Apps Script Web App URL</label>
+          <input type="url" id="inputWebhookUrl" placeholder="https://script.google.com/macros/s/.../exec" class="touch-input" style="font-family:'JetBrains Mono'; font-size: 11px;">
+          <p style="font-size: 10px; color: var(--text-dim); margin-top: 3px;">
+            Mendukung sinkronisasi dua arah: Simpan/Ambil PIN (<code>SETTINGS_PIN</code>), <code>opname</code>, <code>store_order</code>, <code>purchasing</code>, <code>barang_keluar</code>, & <code>omset_harian</code>.
+          </p>
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-top: 4px;">
+          <button onclick="testWebhookConnection()" style="flex: 1; background: #1e293b; border: 1px solid var(--border-color); color: #38bdf8; padding: 8px; border-radius: 7px; font-size: 11px;">Test Kirim Data</button>
+          <button onclick="saveWebhookSettings()" style="flex: 1.5; background: #10b981; color: #fff; font-weight: 700; border: none; padding: 8px; border-radius: 7px; font-size: 11px;">Simpan URL</button>
+        </div>
+
+        <!-- Danger Zone: Reset / Kosongkan Database Transaksi (Khusus Admin / Owner) -->
+        <div style="margin-top: 10px; padding-top: 12px; border-top: 1px dashed rgba(239, 68, 68, 0.4);">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+            <label style="font-size: 11px; font-weight: 700; color: #f87171; display: flex; align-items: center; gap: 5px;">
+              <span>⚠️ Zona Berbahaya (Admin / Owner)</span>
+            </label>
+            <span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; font-size: 9.5px;">Aksi Destruktif</span>
+          </div>
+          <p style="font-size: 10px; color: var(--text-dim); margin-bottom: 8px; line-height: 1.4;">
+            Menghapus seluruh riwayat data transaksi (Opname, Purchasing, Permintaan & Barang Keluar, serta Omset Harian) baik di penyimpanan lokal maupun Google Sheets.
+          </p>
+          <button type="button" onclick="openResetDatabaseModal()" style="width: 100%; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.45); color: #fca5a5; padding: 9px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;" onmouseover="this.style.background='rgba(239, 68, 68, 0.25)'" onmouseout="this.style.background='rgba(239, 68, 68, 0.15)'">
+            <span>🗑️ Reset / Kosongkan Database Transaksi</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- MODAL: RESET DATABASE & KONFIRMASI PIN KEAMANAN ADMIN (1409) -->
+  <div id="resetDatabaseModal" class="modal-overlay" style="display: none; z-index: 10050;">
+    <div class="modal-content" style="max-width: 430px; border-color: rgba(239, 68, 68, 0.45); box-shadow: 0 14px 40px rgba(239, 68, 68, 0.2);">
+      
+      <!-- STEP 1: INPUT PIN KEAMANAN ADMIN (1409) -->
+      <div id="resetDbStep1">
+        <div style="padding: 13px 18px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: rgba(239, 68, 68, 0.08);">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 30px; height: 30px; border-radius: 8px; background: rgba(239, 68, 68, 0.25); border: 1px solid rgba(239, 68, 68, 0.4); display: flex; align-items: center; justify-content: center; font-size: 14px;">🔐</div>
+            <div>
+              <h3 style="font-size: 13.5px; font-weight: 700; color: #fca5a5; margin: 0;">Konfirmasi PIN Keamanan</h3>
+              <p style="font-size: 10.5px; color: var(--text-dim); margin: 0;">Autentikasi Hak Akses Admin / Owner</p>
+            </div>
+          </div>
+          <button onclick="closeResetDatabaseModal()" style="background:none; border:none; color:var(--text-muted); font-size:18px; cursor:pointer;">&times;</button>
+        </div>
+
+        <div style="padding: 18px; display: flex; flex-direction: column; gap: 14px;">
+          <p style="font-size: 12px; color: var(--text-muted); text-align: center; margin: 0; line-height: 1.45;">
+            Untuk mereset database transaksi, silakan masukkan kembali <strong style="color: #f8fafc;">PIN Rahasia Keamanan Admin (1409)</strong>:
+          </p>
+
+          <div>
+            <input 
+              type="password" 
+              id="resetAdminPinInput" 
+              maxlength="4" 
+              inputmode="numeric" 
+              placeholder="••••" 
+              autocomplete="off"
+              style="width: 100%; text-align: center; font-size: 26px; font-weight: 700; letter-spacing: 12px; font-family: 'JetBrains Mono', monospace; padding: 10px; background: #090d16; border: 2px solid var(--border-color); border-radius: 10px; color: #f8fafc; outline: none;"
+              onkeydown="if(event.key === 'Enter') handleVerifyResetPin();"
+              oninput="handleResetPinInputChanged();"
+            >
+            <div id="resetPinError" style="display: none; color: #ef4444; font-size: 11.5px; font-weight: 700; text-align: center; margin-top: 8px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 6px; padding: 7px 10px;">
+              PIN Keamanan Salah! Akses ditolak.
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; margin-top: 4px;">
+            <button type="button" onclick="closeResetDatabaseModal()" style="flex: 1; background: #1e293b; border: 1px solid var(--border-color); color: var(--text-muted); padding: 9px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">
+              Batal
+            </button>
+            <button type="button" onclick="handleVerifyResetPin()" style="flex: 1.6; background: #ef4444; color: #ffffff; border: none; padding: 9px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+              <span>Verifikasi PIN</span>
+              <span>➔</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2: KONFIRMASI KEDUA -->
+      <div id="resetDbStep2" style="display: none;">
+        <div style="padding: 13px 18px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: rgba(239, 68, 68, 0.15);">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 30px; height: 30px; border-radius: 8px; background: rgba(239, 68, 68, 0.3); border: 1px solid rgba(239, 68, 68, 0.5); display: flex; align-items: center; justify-content: center; font-size: 14px;">⚠️</div>
+            <div>
+              <h3 style="font-size: 13.5px; font-weight: 700; color: #f87171; margin: 0;">Konfirmasi Hapus Permanen</h3>
+              <p style="font-size: 10.5px; color: #fca5a5; margin: 0;">Tindakan Tidak Dapat Dibatalkan</p>
+            </div>
+          </div>
+          <button onclick="closeResetDatabaseModal()" style="background:none; border:none; color:var(--text-muted); font-size:18px; cursor:pointer;">&times;</button>
+        </div>
+
+        <div style="padding: 18px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 8px; padding: 12px; color: #fca5a5; font-size: 12px; line-height: 1.5;">
+            <strong>Apakah Anda yakin ingin menghapus seluruh data opname, purchasing, dan omset?</strong>
+            <p style="margin: 6px 0 0 0; font-size: 11px; color: #cbd5e1;">
+              Tindakan ini tidak dapat dibatalkan. Seluruh riwayat transaksi akan dikosongkan dan permintaan sinkronisasi reset akan dikirimkan ke Google Sheets.
+            </p>
+          </div>
+
+          <div style="background: #090d16; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 12px; font-size: 11px; color: var(--text-muted);">
+            <div style="font-weight: 600; color: #f8fafc; margin-bottom: 6px;">Data yang akan dibersihkan:</div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <div>• 📋 Riwayat Form Stock Opname Cabang</div>
+              <div>• 📦 Riwayat Purchasing / Barang Masuk Gudang</div>
+              <div>• 🚚 Riwayat Permintaan Toko & Barang Keluar</div>
+              <div>• 💰 Seluruh Riwayat Laporan Omset Harian</div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; margin-top: 4px;">
+            <button type="button" onclick="closeResetDatabaseModal()" style="flex: 1; background: #1e293b; border: 1px solid var(--border-color); color: var(--text-muted); padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">
+              Batal
+            </button>
+            <button type="button" id="btnExecuteResetDb" onclick="executeDatabaseReset()" style="flex: 1.8; background: linear-gradient(135deg, #ef4444, #dc2626); color: #ffffff; border: none; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);">
+              <span>🗑️ Ya, Bersihkan Database</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- MODAL: PREVIEW FORMAT PESAN STORE ORDER -->
+  <div id="orderSummaryModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="font-size: 13.5px; font-weight: 700;">Format Pesan Store Order WA</h3>
+        <button onclick="closeOrderSummaryModal()" style="background:none; border:none; color:var(--text-muted); font-size:18px;">&times;</button>
+      </div>
+      <div style="padding: 14px;">
+        <textarea id="summaryTextPreview" readonly rows="10" class="touch-input" style="font-family:'JetBrains Mono'; font-size: 11px; line-height: 1.45; resize: none;"></textarea>
+        <div style="margin-top: 10px; display: flex; gap: 8px;">
+          <button onclick="copySummaryText()" id="btnCopySummary" style="flex: 1; background: #1e293b; border: 1px solid var(--border-color); color: #fff; padding: 8px; border-radius: 7px; font-size: 11px; font-weight: 600;">Salin Teks</button>
+          <button onclick="handleSendOrderAndSync()" style="flex: 1.5; background: #25d366; color: #fff; border: none; padding: 8px; border-radius: 7px; font-size: 11px; font-weight: 700;">Lanjut ke WhatsApp</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- MODAL: CETAK SURAT JALAN -->
+  <div id="suratJalanModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 580px; background: #0c1220;">
+      <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="font-size: 13.5px; font-weight: 700; color: #38bdf8;">📄 Surat Jalan & Packing List Warehouse</h3>
+        <button onclick="closeSuratJalanModal()" style="background:none; border:none; color:var(--text-muted); font-size:18px;">&times;</button>
+      </div>
+      <div style="padding: 14px;" id="suratJalanPrintArea"></div>
+      <div style="padding: 10px 16px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 8px;">
+        <button onclick="closeSuratJalanModal()" style="background: #1e293b; border: 1px solid var(--border-color); color: var(--text-muted); padding: 7px 12px; border-radius: 7px; font-size: 11.5px;">Tutup</button>
+        <button onclick="window.print()" style="background: #38bdf8; color: #090d16; font-weight: 700; border: none; padding: 7px 14px; border-radius: 7px; font-size: 11.5px;">🖨️ Cetak / PDF</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- MODAL: TAMBAH ITEM KUSTOM OPNAME -->
+  <div id="addItemModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <div style="padding: 12px 16px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="font-size: 13.5px; font-weight: 700;">+ Tambah Barang ke Opname</h3>
+        <button onclick="closeAddItemModal()" style="background:none; border:none; color:var(--text-muted); font-size:18px;">&times;</button>
+      </div>
+      <div style="padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+        <div>
+          <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Nama Barang</label>
+          <input type="text" id="newOpnameName" placeholder="Contoh: Robusta Gold..." class="touch-input">
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div>
+            <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Kategori</label>
+            <select id="newOpnameCat" class="touch-input">
+              <option value="Bahan Baku">Bahan Baku</option>
+              <option value="Syrup & Powder">Syrup & Powder</option>
+              <option value="Packaging">Packaging</option>
+              <option value="Lain-lain">Lain-lain</option>
+            </select>
+          </div>
+          <div>
+            <label style="display: block; font-size: 10.5px; color: var(--text-muted); margin-bottom: 3px;">Satuan</label>
+            <select id="newOpnameUnit" class="touch-input">
+              <option value="Kg">Kg</option>
+              <option value="Liter">Liter</option>
+              <option value="Botol">Botol</option>
+              <option value="Pcs">Pcs</option>
+              <option value="Box">Box</option>
+              <option value="Pack">Pack</option>
+            </select>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 6px;">
+          <button onclick="closeAddItemModal()" style="flex: 1; background: #1e293b; border: 1px solid var(--border-color); color: var(--text-muted); padding: 7px; border-radius: 7px; font-size: 11.5px;">Batal</button>
+          <button onclick="saveNewOpnameItem()" style="flex: 2; background: #f59e0b; color: #090d16; font-weight: 700; border: none; padding: 7px; border-radius: 7px; font-size: 11.5px;">Simpan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notifikasi Sinkronisasi -->
+  <div id="syncToast">
+    <span id="toastIcon">⚡</span>
+    <span id="toastMsg">Sinkronisasi berhasil!</span>
+  </div>
+
+  <!-- Main JavaScript Logic Module -->
+  <script type="module" src="/src/app.js"></script>
+</body>
+</html>
