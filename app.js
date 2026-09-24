@@ -27,7 +27,6 @@ function sendToGoogleSheets(actionType, payloadData) {
     });
 }
 
-==============================
 // CAFE & WAREHOUSE OPS - MULTI-OUTLET SYSTEM
 // =========================================================
 
