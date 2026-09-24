@@ -3,7 +3,8 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyNkYKTrGaA9INfHK_c4
 
 // Fungsi umum untuk mengirim data ke Google Sheets
 function sendToGoogleSheets(actionType, payloadData) {
-    if (!SCRIPT_URL || SCRIPT_URL === "https://script.google.com/macros/s/AKfycbyNkYKTrGaA9INfHK_c4DeiSwvWc8hmjW1n-yMG5WPO5kIhy7LD0WpEIZ9IjrT7aahr/exec") {
+    // Hanya batalkan jika SCRIPT_URL kosong atau masih berisi teks placeholder 'YOUR_SCRIPT_URL'
+    if (!SCRIPT_URL || SCRIPT_URL === "" || SCRIPT_URL.includes("YOUR_SCRIPT_URL")) {
         console.warn("URL Webhook Google Apps Script belum dipasang.");
         return;
     }
