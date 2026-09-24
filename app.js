@@ -3,25 +3,30 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyNkYKTrGaA9INfHK_c4
 
 // Fungsi umum untuk mengirim data ke Google Sheets
 function sendToGoogleSheets(actionType, payloadData) {
-    // Hanya batalkan jika SCRIPT_URL kosong atau masih berisi teks placeholder 'YOUR_SCRIPT_URL'
-    if (!SCRIPT_URL || SCRIPT_URL === "" || SCRIPT_URL.includes("YOUR_SCRIPT_URL")) {
+    // Validasi URL Webhook
+    const webhookUrl = SCRIPT_URL || localStorage.getItem('cafe_gsheet_webhook_url');
+    if (!webhookUrl || webhookUrl === "" || webhookUrl.includes("YOUR_SCRIPT_URL")) {
         console.warn("URL Webhook Google Apps Script belum dipasang.");
         return;
     }
 
-    fetch(SCRIPT_URL, {
-        method: "POST",
-        mode: "no-cors", // Digunakan agar tidak terhalang kebijakan CORS browser
-        headers: {
-            "Content-Type": "application/json"
+    const payload = {
+        action: actionType,
+        outlet: (typeof currentUserSession !== 'undefined' && currentUserSession) ? currentUserSession.name : 'Warehouse Central',
+        timestamp: new Date().toISOString(),
+        data: payloadData
+    };
+
+    fetch(webhookUrl, {
+        method: 'POST',
+        mode: 'no-cors', // Mencegah terhalang kebijakan CORS browser
+        headers: { 
+            'Content-Type': 'application/json' 
         },
-        body: JSON.stringify({
-            action: actionType,
-            data: payloadData
-        })
+        body: JSON.stringify(payload)
     })
     .then(() => {
-        console.log("Data berhasil dikirim ke Google Sheets.");
+        console.log(`Data [${actionType}] berhasil dikirim ke Google Sheets.`);
     })
     .catch((error) => {
         console.error("Gagal mengirim data ke Google Sheets:", error);
