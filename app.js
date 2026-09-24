@@ -2159,3 +2159,8 @@ function downloadCSVFile(csvContent, filename) {
   URL.revokeObjectURL(url);
   showToast(`File ${filename} berhasil didownload!`);
 }
+
+// Daftarkan fungsi ke window scope agar bisa dipanggil oleh onclick di HTML
+window.handlePinInput = handlePinInput;
+window.handlePinSubmit = handlePinSubmit;
+window.clearPin = clearPin;
