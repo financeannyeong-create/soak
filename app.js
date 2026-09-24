@@ -2159,7 +2159,10 @@ function downloadCSVFile(csvContent, filename) {
   showToast(`File ${filename} berhasil didownload!`);
 }
 
-// Daftarkan fungsi ke window scope agar bisa dipanggil oleh onclick di HTML
-window.handlePinInput = handlePinInput;
-window.handlePinSubmit = handlePinSubmit;
-window.clearPin = clearPin;
+// Ganti baris pendaftaran di paling bawah app.js menjadi seperti ini:
+window.handlePinInput = typeof handlePinInput !== 'undefined' ? handlePinInput : null;
+window.handlePinSubmit = typeof handlePinSubmit !== 'undefined' ? handlePinSubmit : null;
+
+if (typeof clearPin !== 'undefined') {
+  window.clearPin = clearPin;
+}
