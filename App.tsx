@@ -1,8 +1,25 @@
-import { useState } from 'react';
-import { Terminal, Code2, Layers, Cpu, Play, CheckCircle2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Terminal, Code2, Layers, Cpu, Play, CheckCircle2, Camera } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'overview' | 'environment'>('overview');
+  const [imagePreview, setImagePreview] = useState('');
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
+
+  const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setImagePreview((previousPreview) => {
+      if (previousPreview) URL.revokeObjectURL(previousPreview);
+      return URL.createObjectURL(file);
+    });
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
@@ -84,6 +101,29 @@ export default function App() {
               <p className="text-sm text-slate-300">
                 Lingkungan pengembang telah dikonfigurasi. Silakan berikan spesifikasi aplikasi, fitur, atau kode yang ingin dibuat.
               </p>
+              <div className="rounded-lg border border-slate-800 bg-slate-950 p-4">
+                <label htmlFor="itemPhotoInput" className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-200">
+                  <Camera className="h-4 w-4 text-amber-400" />
+                  Foto Produk (Kamera HP)
+                </label>
+                <input
+                  id="itemPhotoInput"
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handlePhotoChange}
+                  className="block w-full cursor-pointer rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-300 file:mr-3 file:rounded file:border-0 file:bg-amber-500 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-slate-950 hover:border-slate-600"
+                />
+                {imagePreview && (
+                  <div className="mt-3 text-center">
+                    <img
+                      src={imagePreview}
+                      alt="Pratinjau Foto"
+                      className="mx-auto h-[150px] w-[150px] rounded-lg border border-slate-700 object-cover"
+                    />
+                  </div>
+                )}
+              </div>
               <div className="bg-slate-950 border border-slate-800 rounded-lg p-4 font-mono text-xs text-slate-300 flex items-center justify-between">
                 <span>Siap menerima instruksi build berikutnya...</span>
                 <Play className="w-4 h-4 text-emerald-400" />
